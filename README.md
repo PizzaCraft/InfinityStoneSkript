@@ -1,4 +1,4 @@
-Infinity SMP Stones: Reality, Soul, Space, Mind, Time, & Power
+Infinity SMP Stones: Reality, Soul, Space, Mind, Time, & Power.
 Use /item <stonetype>stone to give infinity stone
 Required Addons:
   SKBee 3.11.2
