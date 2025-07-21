@@ -1,0 +1,285 @@
+on load:
+    set {customitems::mindstone} to nether star of curse of vanishing named "§e§lMind Stone" with lore "§f§lYour attacks have a 5 percent chance of inflicting levitation" and "§u§lRight-Click: Headache - 1:30 cooldown" with custom model data 1
+    set {customitems::mindstone2} to nether star of curse of vanishing named "§e§lMind Stone" with lore "§8§lPristine" and "§f§lYour attacks have a 5 percent chance of inflicting levitation" and "§u§lRight-Click: Headache - 1:30 cooldown" and "§9§lLeft-Click: mind Wave - 2:00 Cooldown" with custom model data 1
+    set {customitems::mindstone3} to nether star of curse of vanishing named "§e§lMind Stone" with lore "§8§lPristine" and "§f§lYour attacks have a 5 percent chance of inflicting levitation" and "§u§lRight-Click: Headache - 1:30 cooldown" and "§9§lLeft-Click: mind Wave - 2:00 Cooldown" and "§u§lMainhand + Hit Player: Amplify mind - 5:00 cooldown" with custom model data 1
+    set {customitems::mindstone-1} to nether star of curse of vanishing named "§e§lMind Stone" with lore "§8§lDamaged" and "§f§lYour attacks have a 5 percent chance of inflicting levitation"
+
+
+on damage of player:
+    if name of victim's offhand tool is "§e§lMind Stone":
+        set {_chance} to random integer between 1 and 100
+        if {_chance} <= 10:
+            cancel event
+            play sound "entity.enderman.teleport" with volume 0.5 and pitch 4 at victim
+            draw 5 dust using dustOption(rgb(255, 255, 0), 1) at victim with extra 0 with force
+            send action bar "&e⚡ You dodged the attack!" to victim
+
+every 10 seconds:
+    loop all players:
+        if loop-player's tool's name is "§e§lMind Stone": # Main hand check
+            apply potion of hero of the village of tier 1 to loop-player for 10 seconds
+            apply potion of luck of tier 1 to loop-player for 10 seconds
+        else if loop-player's offhand tool's name is "§e§lMind Stone": # Offhand check
+            apply potion of hero of the village of tier 1 to loop-player for 10 seconds
+            apply potion of luck of tier 1 to loop-player for 10 seconds
+
+on death:
+    set {_saved::*} to ""
+    loop all items in victim's inventory:
+        if name of loop-item contains "§e§lMind Stone":
+            add loop-item to {_saved::*}
+    wait 1 tick
+    loop {_saved::*}:
+        give loop-value to victim
+on rightclick:
+    if name of offhand item of player is "§e§lMind Stone":
+
+        # Prevent multiple triggers in the same tick or rapid spam
+        if {mindstone_processing::%player%} is set:
+            stop
+        set {mindstone_processing::%player%} to true
+
+        # Small delay to allow next clicks after processing
+        wait 2 ticks
+        delete {mindstone_processing::%player%}
+
+        set {_item} to player's held item
+        if {_item} is air or diamond sword or diamond axe or iron sword or iron axe or stone sword or stone axe:
+
+            if {mindstone_cooldown::%player%} is set:
+                if {mindstone_cooldown_message::%player%} is not set:
+                    send "&e🔮 &cYour §eMind Shield &cability is on cooldown for §e%{mindstone_cooldown::%player%}%s" to player
+                    set {mindstone_cooldown_message::%player%} to true
+                    wait 20 ticks
+                    delete {mindstone_cooldown_message::%player%}
+                stop
+
+            if {mindstone_activated::%player%} is set:
+                send "&cYou have already activated Mind Shield!" to player
+                stop
+
+            if {DoubleClick::%player's uuid%} is not set:
+                set {DoubleClick::%player's uuid%} to true
+                wait 15 ticks
+                delete {DoubleClick::%player's uuid%}
+            else:
+                delete {DoubleClick::%player's uuid%}
+                send "&e🔮 &aYou have activated §eMind Shield!" to player
+                set {mindstone_activated::%player%} to true
+                set {mindstoneInUse::%player%} to true
+
+                # Clear negative potion effects
+                remove blindness from player
+                remove confusion from player
+                remove slowness from player
+                remove weakness from player
+                remove mining fatigue from player
+                remove nausea from player
+                remove poison from player
+                remove wither from player
+                remove levitation from player
+                remove slow falling from player
+                # (Add more debuffs if needed)
+
+                # Apply Resistance I for 10 seconds
+                apply resistance 1 to player for 20 seconds replacing existing effect
+
+                # Apply Absorption IV (4 hearts) for 1 minute
+                apply absorption 2 to player for 60 seconds replacing existing effect
+                wait 10 seconds
+                delete {mindstoneInUse::%player%}
+
+
+                # Start cooldown
+                set {mindstone_cooldown::%player%} to 40
+
+                while {mindstone_cooldown::%player%} > 0:
+                    wait 1 second
+                    subtract 1 from {mindstone_cooldown::%player%}
+
+                delete {mindstone_cooldown::%player%}
+                delete {mindstone_activated::%player%}
+            
+on rightclick with nether star:
+    if player is set:
+        if lore of player's tool contains "§u§lRight-Click: Headache - 1:30 cooldown":
+            if {mindStoneCooldown::%player%} is set:
+                set {_remaining} to {mindStoneCooldown::%player%}
+                send "§cAbility is on cooldown! Remaining time: %{_remaining}% seconds" to player
+            else:
+                if {mindStoneTrigger::%player%} is not set:
+                    set {mindStoneTrigger::%player%} to true
+                    
+                    send "§dYou release a mental shockwave... §5[§lHeadache§5]" to player
+                    set {timeInUse::%player%} to true
+                    # Effect nearby non-trusted players
+                    loop all players in radius 8 around player:
+                        if uuid of loop-player is not uuid of player:
+                            if {trust::%uuid of player%::*} does not contain uuid of loop-player:
+                                apply blindness 1 to loop-player for 10 seconds
+                                apply confusion 2 to loop-player for 10 seconds
+                                set {mindstone::cantattack::%uuid of loop-player%} to true
+                                send "§5A wave of psychic pressure invades your mind..." to loop-player
+                                wait 10 seconds
+                                delete {mindstone::cantattack::%uuid of loop-player%}
+                    delete {timeInUse::%player%}
+                    # Start cooldown
+                    set {mindStoneCooldown::%player%} to 90
+                    while {mindStoneCooldown::%player%} > 0:
+                        wait 1 second
+                        set {mindStoneCooldown::%player%} to {mindStoneCooldown::%player%} - 1
+                    delete {mindStoneCooldown::%player%}
+                    delete {mindStoneTrigger::%player%}
+                    send "§eYour mind Stone ability is ready to use again!" to player
+
+
+on damage:
+    if attacker is a player:
+        if {mindstone::cantattack::%uuid of attacker%} is set:
+            cancel event
+            send "§cYour head throbs too much to fight!" to attacker
+every 1 second:
+    loop all players:
+        if name of offhand item of loop-player is "§e§lMind Stone":
+            # ⏳ Main cooldown or “Active..”
+            if {timeInUse::%loop-player%} is set:
+                set {_cd1} to "&e⚡ &cActive.."
+            else if {mindstoneCooldown::%loop-player%} is set:
+                set {_total1} to {mindstoneCooldown::%loop-player%}
+                set {_min} to floor({_total1} / 60)
+                set {_sec} to {_total1} - {_min} * 60
+
+                if {_min} > 0:
+                    set {_cd1} to "&e⚡ &b%{_min}%m %{_sec}%s"
+                else:
+                    set {_cd1} to "&e⚡ &b%{_sec}%s"
+            else:
+                set {_cd1} to "&e⚡ &aReady!"
+
+            # 🕒 Secondary cooldown or “Active..”
+            if {mindstoneInUse::%loop-player%} is set:
+                set {_cd2} to "&e✨ &cActive.."
+            else if {mindstone_cooldown::%loop-player%} is set:
+                set {_cd2} to "&e✨ &b%{mindstone_cooldown::%loop-player%}%s"
+            else:
+                set {_cd2} to "&e✨ &aReady!"
+            send action bar "%{_cd1}% %{_cd2}%" to loop-player
+
+on leftclick with nether star:
+    if player is set: # Ensures only players trigger the event
+        if lore of player's tool contains "§9§lLeft-Click: mind Wave - 2:00 Cooldown":
+            if {mindStoneCooldown1::%player%} is set:
+                set {_remaining1} to {mindStoneCooldown1::%player%}
+                send "§cSecond Ability is on cooldown! Remaining time: %{_remaining1}% seconds" to player
+            else:
+                if {mindStoneTrigger1::%player%} is not set: # Prevents repeat activations
+                    set {mindStoneTrigger1::%player%} to true
+     
+                    execute console command "score particles target:%uuid of player% shape:circularBeam color:PURPLE maxRadius:5 rate:100 radiusRate:15 extend:2 time:100"           
+                    
+                    # Damage players caught in the wave
+                    loop 6 times:
+                        loop all players in radius 8 around player:
+                            set {_target} to loop-player
+                            if {_target} is not player: # Excludes ability user
+                                if {trust::%uuid of player%::*} does not contain uuid of {_target}: # Excludes trusted players
+                                    damage {_target} by 4 hearts
+                                    apply slowness 2 to {_target} for 120 ticks
+                                    wait 1 second
+
+                    set {mindStoneCooldown1::%player%} to 120
+                
+                    # Countdown for cooldown
+                    while {mindStoneCooldown1::%player%} > 0:
+                        wait 1 second
+                        set {mindStoneCooldown1::%player%} to {mindStoneCooldown1::%player%} - 1
+                    
+                    delete {mindStoneCooldown1::%player%}
+                    delete {mindStoneTrigger1::%player%}
+                    send "§eYour mind Stone second ability is ready to use again!" to player
+
+on damage:
+    if attacker is a player:
+        if attacker's tool's name is "§e§lMind Stone": # Ensures player is holding mind Stone
+            if lore of attacker's tool contains "§u§lMainhand + Hit Player: Amplify mind - 5:00 cooldown":
+                if {mindStoneCooldown2::%attacker%} is set:
+                    set {_remaining} to {mindStoneCooldown2::%attacker%}
+                    send "§cUltimate is on cooldown! Remaining time: %{_remaining}% seconds" to attacker
+                    cancel event
+                else:
+                    if {mindStoneTrigger2::%attacker%} is not set: # Prevents repeat activations
+                        set {mindStoneTrigger2::%attacker%} to true
+                        
+                        # Activate ability for 30 seconds
+                        set {mindStoneActive::%attacker%} to true
+                        set {mindStoneMultiplier::%attacker%} to 1.1 # Start at 1.1x multiplier
+                        send "§eYour mind Stone ability is active! Each hit temporarily increases damage." to attacker
+                        execute console command "/score particles target:%uuid of attacker% shape:helix particle:dragon_breath strings:4 radius:2 rate:0.001 extension:4 height:2 speed:5 fadeUp:false fadeDown: false"
+                        
+                        loop 30 times: # Loop every second
+                            if {mindStoneMultiplier::%attacker%} < 1.75: # Ensure max cap at 1.75x
+                                add 0.05 to {mindStoneMultiplier::%attacker%}
+                                send "§eYour attack multiplier has increased to %{mindStoneMultiplier::%attacker%}%!" to attacker
+                            wait 1 second
+                        
+                        # Cleanup after 30 seconds
+                        delete {mindStoneActive::%attacker%}
+                        delete {mindStoneMultiplier::%attacker%}
+
+                        # Set cooldown (5 minutes)
+                        set {mindStoneCooldown2::%attacker%} to 300
+                    
+                        # Countdown for cooldown
+                        while {mindStoneCooldown2::%attacker%} > 0:
+                            wait 1 second
+                            set {mindStoneCooldown2::%attacker%} to {mindStoneCooldown2::%attacker%} - 1
+                        
+                        delete {mindStoneCooldown2::%attacker%}
+                        delete {mindStoneTrigger2::%attacker%}
+                        send "§eYour mind Stone ultimate is ready to use again!" to attacker
+on join:
+    delete {mindstone::cantattack::%uuid of player%}
+
+variables:
+    {cooldown.%player%} = 0
+
+variables:
+    {cooldown.%player%} = 0
+    {autoEnchant.%player%} = false  # Default: Auto Enchant enabled
+
+
+on sneak toggle:
+    if {autoEnchant.%player%} is false:
+        stop  # Prevent activation if disabled
+    if {cooldown.%player%} is greater than now:
+        send "&cmind Stone auto enchant is still on cooldown!"
+        stop
+
+ 
+on drop:
+    if event-item's name is "§e§lMind Stone":
+        cancel event
+        send "&cYou cannot drop the mind Stone!" to player
+
+on inventory click:
+    set {_invtype} to "%type of player's current inventory%" # Convert inventory type to text
+    if {_invtype} is "chest inventory" or "barrel inventory" or "shulker box inventory" or "crafter inventory" or "ender chest inventory" or "hopper inventory" or "grindstone inventory" or "crafting inventory" or "smithing inventory" or "loom inventory" or "cartography inventory" or "stonecutter inventory" or "furnace inventory" or "blast furnace inventory":
+        if event-item is nether star:
+            if event-item's name is "§e§lMind Stone":
+                cancel event
+                send "&cYou cannot store the mind Stone in this container!" to player
+
+on craft of beacon:
+    loop all items in event-inventory:
+        if loop-item is nether star:
+            if loop-item's name is "§e§lMind Stone":
+                cancel event
+                send "&cYou cannot use the mind Stone to craft a beacon!" to player
+
+on inventory click:
+    if player's current inventory is anvil inventory: # Ensures player is using an anvil
+        if clicked slot is 0 or 1 or 2: # Anvil slots (Left input, Right input, Output)
+            if event-item is nether star:
+                if event-item's name is "§e§lMind Stone":
+                    cancel event
+                    send "&cYou cannot modify the mind Stone in an anvil!" to player

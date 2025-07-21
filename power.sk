@@ -1,0 +1,300 @@
+on load:
+    set {customitems::powerstone} to nether star of curse of vanishing named "§5§lPower Stone" with lore "§f§lYour attacks have a 10 percent chance of dealing double damage Your attacks have a 5 percent chance of inflicting weakness" and "§u§lRight-Click: Power Beam - 2:00 cooldown" with custom model data 3
+    set {customitems::powerstone2} to nether star of curse of vanishing named "§5§lPower Stone" with lore "§8§lPristine" and "§f§lYour attacks have a 10 percent chance of dealing double damage Your attacks have a 5 percent chance of inflicting weakness" and "§u§lRight-Click: Power Beam - 2:00 cooldown" and "§9§lLeft-Click: Power Wave - 2:00 Cooldown" with custom model data 3
+    set {customitems::powerstone3} to nether star of curse of vanishing named "§5§lPower Stone" with lore "§8§lPristine" and "§f§lYour attacks have a 10 percent chance of dealing double damage Your attacks have a 5 percent chance of inflicting weakness" and "§u§lRight-Click: Power Beam - 2:00 cooldown" and "§9§lLeft-Click: Power Wave - 2:00 Cooldown" and "§u§lMainhand + Hit Player: Amplify Power - 5:00 cooldown" with custom model data 3
+    set {customitems::powerstone-1} to nether star of curse of vanishing named "§5§lPower Stone" with lore "§8§lDamaged" and "§f§lYour attacks have a 10 percent chance of dealing double damage Your attacks have a 5 percent chance of inflicting weakness"
+   
+
+on damage:
+    if attacker is a player:
+        if name of attacker's offhand tool is "§5§lPower Stone":
+
+            # Weakness chance (5%)
+            set {_chance} to random integer between 1 and 100
+            if {_chance} <= 5:
+                apply weakness 1 to victim for 8 seconds
+                execute console command "execute at %name of victim% run particle minecraft:large_smoke ~ ~ ~ 4 4 4 0 40"
+                execute console command "playsound minecraft:block.anvil.land master %name of attacker% ~ ~ ~ 1 1"
+
+command /resetpowerstone:
+    permission: op
+    trigger:
+        delete {powerStoneCooldown::%player%}
+        delete {powerStoneTrigger::%player%}
+        send "&aPower Stone ability has been reset." to player
+
+
+on death:
+    set {_saved::*} to ""
+    loop all items in victim's inventory:
+        if name of loop-item contains "§5§lPower Stone":
+            add loop-item to {_saved::*}
+    wait 1 tick
+    loop {_saved::*}:
+        give loop-value to victim
+
+on death of shulker:
+    if world of victim is "world":  # Replace "world" with your overworld name if different
+        clear drops
+                 
+on rightclick with nether star:
+    if lore of player's tool contains "§u§lRight-Click: Power Beam - 2:00 cooldown":
+        if {powerStoneCooldown::%player%} is set:
+            set {_remaining} to {powerStoneCooldown::%player%}
+            send "§cAbility is on cooldown! %{_remaining}%s left." to player
+            stop
+
+        if {powerStoneTrigger::%player%} is set:
+            stop
+
+        set {powerStoneTrigger::%player%} to true
+        set {powerInUse::%player%} to true
+        loop 20 times:
+            raycastBeam(player, 50, 1)
+            wait 5 ticks
+        delete {powerInUse::%player%}
+        set {powerStoneCooldown::%player%} to 120
+
+        while {powerStoneCooldown::%player%} > 0:
+            wait 1 second
+            subtract 1 from {powerStoneCooldown::%player%}
+
+        delete {powerStoneCooldown::%player%}
+        delete {powerStoneTrigger::%player%}
+        send "§eYour Power Stone ability is ready again!" to player
+
+
+
+every 1 second:
+    loop all players:
+        if name of offhand item of loop-player is "§5§lPower Stone":
+
+            # 💥 First cooldown or “Active..” in red
+            if {powerInUse::%loop-player%} is set:
+                set {_cd1} to "&5💥 &cActive.."
+            else if {powerStoneCooldown::%loop-player%} is set:
+                set {_total1} to {powerStoneCooldown::%loop-player%}
+                set {_min} to floor({_total1} / 60)
+                set {_sec} to {_total1} - {_min} * 60
+
+                if {_min} > 0:
+                    set {_cd1} to "&5💥 &b%{_min}%m %{_sec}%s"
+                else:
+                    set {_cd1} to "&5💥 &b%{_sec}%s"
+            else:
+                set {_cd1} to "&5💥 &aReady!"
+
+            # 💪 Second cooldown or “Active..” in red
+            if {powerstoneInUse::%loop-player%} is set:
+                set {_cd2} to "&5💪 &cActive.."
+            else if {powerstone_cooldown::%loop-player%} is set:
+                set {_cd2} to "&5💪 &b%{powerstone_cooldown::%loop-player%}%s"
+            else:
+                set {_cd2} to "&5💪 &aReady!"
+
+            # Send combined action bar
+            send action bar "%{_cd1}% %{_cd2}%" to loop-player
+
+
+
+on rightclick:
+    if name of offhand item of player is "§5§lPower Stone":
+
+        # Prevent multiple triggers in same tick
+        if {powerstone_processing::%player%} is set:
+            stop
+        set {powerstone_processing::%player%} to true
+        wait 1 tick
+        delete {powerstone_processing::%player%}
+
+        set {_item} to player's held item
+        {_item} is air or diamond sword or diamond axe or iron sword or iron axe or stone sword or stone axe
+
+            # proceed
+
+        if {powerstone_cooldown::%player%} is set:
+            if {powerstone_cooldown_message::%player%} is not set:
+                send "&5🔮 &cYour §5Power Surge &cability is on cooldown for §5%{powerstone_cooldown::%player%}%s" to player
+                set {powerstone_cooldown_message::%player%} to true
+                wait 20 ticks
+                delete {powerstone_cooldown_message::%player%}
+            stop
+
+        if {DoubleClick::%player's uuid%} is not set:
+            set {DoubleClick::%player's uuid%} to true
+            wait 15 ticks
+            delete {DoubleClick::%player's uuid%}
+        else:
+            if {powerstone_activated::%player%} is set:
+                stop
+            delete {DoubleClick::%player's uuid%}
+            send "&5🔮 &cYou have activated §5Power Surge" to player
+            set {powerstone_activated::%player%} to true
+            set {powerstoneInUse::%player%} to true
+            apply strength 1 to player for 8 seconds replacing existing effect
+            set {_loc} to location of player
+            loop 10 times:
+                set {_loc} to location of player
+                draw 4 dust using dustOption(rgb(255, 0, 255), 1) at {_loc} with extra 0 with force
+                wait 10 ticks
+                draw 4 dust using dustOption(rgb(255, 0, 255), 1) at {_loc} with extra 0 with force
+
+
+            delete {powerstoneInUse::%player%}
+
+
+            # Start cooldown
+            set {powerstone_cooldown::%player%} to 40
+
+            while {powerstone_cooldown::%player%} > 0:
+                wait 1 second
+                subtract 1 from {powerstone_cooldown::%player%}
+
+            delete {powerstone_cooldown::%player%}
+            delete {powerstone_activated::%player%}
+
+
+
+on leftclick with nether star:
+    if player is set: # Ensures only players trigger the event
+        if lore of player's tool contains "§9§lLeft-Click: Power Wave - 2:00 Cooldown":
+            if {powerStoneCooldown1::%player%} is set:
+                set {_remaining1} to {powerStoneCooldown1::%player%}
+                send "§cSecond Ability is on cooldown! Remaining time: %{_remaining1}% seconds" to player
+            else:
+                if {powerStoneTrigger1::%player%} is not set: # Prevents repeat activations
+                    set {powerStoneTrigger1::%player%} to true
+     
+                    execute console command "score particles target:%uuid of player% shape:circularBeam color:PURPLE maxRadius:5 rate:100 radiusRate:15 extend:2 time:100"           
+                    
+                    # Damage players caught in the wave
+                    loop 6 times:
+                        loop all players in radius 8 around player:
+                            set {_target} to loop-player
+                            if {_target} is not player: # Excludes ability user
+                                if {trust::%uuid of player%::*} does not contain uuid of {_target}: # Excludes trusted players
+                                    damage {_target} by 4 hearts
+                                    apply slowness 2 to {_target} for 120 ticks
+                                    wait 1 second
+
+                    set {powerStoneCooldown1::%player%} to 120
+                
+                    # Countdown for cooldown
+                    while {powerStoneCooldown1::%player%} > 0:
+                        wait 1 second
+                        set {powerStoneCooldown1::%player%} to {powerStoneCooldown1::%player%} - 1
+                    
+                    delete {powerStoneCooldown1::%player%}
+                    delete {powerStoneTrigger1::%player%}
+                    send "§eYour Power Stone second ability is ready to use again!" to player
+
+on damage:
+    if attacker is a player:
+        if attacker's tool's name is "§5§lPower Stone": # Ensures player is holding Power Stone
+            if lore of attacker's tool contains "§u§lMainhand + Hit Player: Amplify Power - 5:00 cooldown":
+                if {powerStoneCooldown2::%attacker%} is set:
+                    set {_remaining} to {powerStoneCooldown2::%attacker%}
+                    send "§cUltimate is on cooldown! Remaining time: %{_remaining}% seconds" to attacker
+                    cancel event
+                else:
+                    if {powerStoneTrigger2::%attacker%} is not set: # Prevents repeat activations
+                        set {powerStoneTrigger2::%attacker%} to true
+                        
+                        # Activate ability for 30 seconds
+                        set {powerStoneActive::%attacker%} to true
+                        set {powerStoneMultiplier::%attacker%} to 1.1 # Start at 1.1x multiplier
+                        send "§eYour Power Stone ability is active! Each hit temporarily increases damage." to attacker
+                        execute console command "/score particles target:%uuid of attacker% shape:helix particle:dragon_breath strings:4 radius:2 rate:0.001 extension:4 height:2 speed:5 fadeUp:false fadeDown: false"
+                        
+                        loop 30 times: # Loop every second
+                            if {powerStoneMultiplier::%attacker%} < 1.75: # Ensure max cap at 1.75x
+                                add 0.05 to {powerStoneMultiplier::%attacker%}
+                                send "§eYour attack multiplier has increased to %{powerStoneMultiplier::%attacker%}%!" to attacker
+                            wait 1 second
+                        
+                        # Cleanup after 30 seconds
+                        delete {powerStoneActive::%attacker%}
+                        delete {powerStoneMultiplier::%attacker%}
+
+                        # Set cooldown (5 minutes)
+                        set {powerStoneCooldown2::%attacker%} to 300
+                    
+                        # Countdown for cooldown
+                        while {powerStoneCooldown2::%attacker%} > 0:
+                            wait 1 second
+                            set {powerStoneCooldown2::%attacker%} to {powerStoneCooldown2::%attacker%} - 1
+                        
+                        delete {powerStoneCooldown2::%attacker%}
+                        delete {powerStoneTrigger2::%attacker%}
+                        send "§eYour Power Stone ultimate is ready to use again!" to attacker
+
+variables:
+    {cooldown.%player%} = 0
+
+variables:
+    {cooldown.%player%} = 0
+    {autoEnchant.%player%} = false  # Default: Auto Enchant enabled
+
+
+on sneak toggle:
+    if {autoEnchant.%player%} is false:
+        stop  # Prevent activation if disabled
+    if {cooldown.%player%} is greater than now:
+        send "&cPower Stone auto enchant is still on cooldown!"
+        stop
+    if player's offhand tool's name is "§5§lPower Stone":
+        execute console command "/enchant %player% sharpness 3"
+        send "&aYour weapon has been enchanted with Sharpness III!"
+        set {cooldown.%player%} to now + 60 seconds
+
+
+
+
+
+function raycastBeam(p: player, length: number, dmg: number):
+    set {_x} to 0
+    set {_l} to 0
+    loop {_length} times:
+        add 1 to {_x}
+        add 0.25 to {_l}
+        set {_rg%{_x}%} to location {_l} meters in front of {_p}
+        set {_rg%{_x}%} to location 1.25 meters above {_rg%{_x}%}
+
+    set {_x} to 0
+    loop {_length} times:
+        add 1 to {_x}
+        show 4 purple dust at {_rg%{_x}%}
+        loop entities in radius 2 around {_rg%{_x}%}:
+            if loop-entity is not {_p}:
+                if {trust::%uuid of {_p}%::*} does not contain uuid of loop-entity: # Ignore trusted players
+                    execute console command "/damage %loop-entity% 2.5"
+                    set {lastAttacker::%loop-entity%} to {_p} # Store last attacker
+
+ 
+on drop:
+    if event-item's name is "§5§lPower Stone":
+        cancel event
+        send "&cYou cannot drop the Power Stone!" to player
+
+on inventory click:
+    set {_invtype} to "%type of player's current inventory%" # Convert inventory type to text
+    if {_invtype} is "chest inventory" or "barrel inventory" or "shulker box inventory" or "crafter inventory" or "ender chest inventory" or "hopper inventory" or "grindstone inventory" or "crafting inventory" or "smithing inventory" or "loom inventory" or "cartography inventory" or "stonecutter inventory" or "furnace inventory" or "blast furnace inventory":
+        if event-item is nether star:
+            if event-item's name is "§5§lPower Stone":
+                cancel event
+                send "&cYou cannot store the Power Stone in this container!" to player
+
+on craft of beacon:
+    loop all items in event-inventory:
+        if loop-item is nether star:
+            if loop-item's name is "§5§lPower Stone":
+                cancel event
+                send "&cYou cannot use the Power Stone to craft a beacon!" to player
+
+on inventory click:
+    if player's current inventory is anvil inventory: # Ensures player is using an anvil
+        if clicked slot is 0 or 1 or 2: # Anvil slots (Left input, Right input, Output)
+            if event-item is nether star:
+                if event-item's name is "§5§lPower Stone":
+                    cancel event
+                    send "&cYou cannot modify the Power Stone in an anvil!" to player

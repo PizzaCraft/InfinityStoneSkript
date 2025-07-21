@@ -1,0 +1,225 @@
+on load:
+    set {customitems::gaeaheart} to cherry sapling with name "&2&lGaea's Heart of the Wild" with custom model data 30
+ 
+command /heart:
+    permission: op
+    trigger:
+        give player {customitems::gaeaheart}
+        delete {gaea_cooldown.%player%}
+on craft:
+    if name of event-item is "&2&lGaea's Heart of the Wild":
+        set {_loc} to location of player
+        set {_x} to x-coordinate of {_loc}
+        set {_y} to y-coordinate of {_loc}
+        set {_z} to z-coordinate of {_loc}
+        broadcast "&a⚒ %player% has crafted &2&lGaea's Heart of the Wild &aat X: %{_x}%, Y: %{_y}%, Z: %{_z}%!"
+
+on right click with cherry sapling:
+    if name of player's tool is "&2&lGaea's Heart of the Wild":
+        # Check cooldown
+        if {gaea_cooldown.%player%} > 0:
+            send "&cYou must wait %{gaea_cooldown.%player%}% seconds before using &2&lGaea's Heart &cagain!" to player
+            stop
+
+        # Check if player is already trying to activate (lock)
+        if {gaea_activation_lock.%player%} is true:
+            stop
+
+        # Set activation lock immediately to prevent multiple triggers
+        set {gaea_activation_lock.%player%} to true
+
+        # Store player's current held item to verify after 1 second
+        set {holditem.%player%} to player's tool
+
+        wait 1 second
+
+        # Check if player still holds the same item
+        if player's tool is {holditem.%player%}:
+            # Apply effects
+            apply regeneration of tier 3 to player for 10 seconds
+            apply resistance of tier 2 to player for 10 seconds
+            apply absorption of tier 10 to player for 90 seconds
+            play sound "ENTITY_PLAYER_LEVELUP" with volume 1 and pitch 1 to player
+
+            send "&aYou have used &2&lGaea's Heart of the Wild&a and feel the wild's blessing!" to player
+
+            # Start cooldown
+            set {gaea_cooldown.%player%} to 120
+
+            # Start cooldown loop if not running
+
+            loop 120 times:
+                if {gaea_cooldown.%player%} > 0:
+                    subtract 1 from {gaea_cooldown.%player%}
+                    wait 1 second
+        
+            send "&aYour cooldown is now over! You can use &2&lGaea's Heart &aagain." to player
+            set {gaea_cooldown_task_running.%player%} to false
+        
+
+            # Clear activation lock so they can activate again after cooldown
+            set {gaea_activation_lock.%player%} to false
+        else:
+            send "&cYou must hold right-click for 1 second to use the &2&lGaea's Heart&c!" to player
+            set {gaea_activation_lock.%player%} to false
+
+
+on block place:
+    if name of player's tool is "&2&lGaea's Heart of the Wild":
+        cancel event
+
+on break of oak leaves:
+    drop 1 apple at location of event-block
+command /clearsoulstone <player>:
+    permission: op
+    trigger:
+
+
+        set {_target} to arg-1
+
+        loop all items in {_target}'s inventory:
+            if name of loop-item is "§2§lTime Stone":
+                remove loop-item from {_target}'s inventory
+
+
+command /resetspacestoneall:
+    permission: op
+    trigger:
+        loop all players:
+            delete {spaceStoneTrigger1::%loop-player%}
+            delete {spaceInUse::%loop-player%}
+            delete {spaceStoneCooldown1::%loop-player%}
+            delete {spaceStone.cooldown.%loop-player%}
+        send "&aReset Space Stone state and cooldown for all online players."
+
+command /unglow <offlineplayer>:
+    permission: op
+    trigger:
+        loop all players:
+            if loop-player is arg-1:
+                execute console command "effect clear %loop-player% glowing"
+                # If you have skBee, call:
+                # set glowing of loop-player to false
+                send "&aRemoved glowing from %loop-player%."
+
+on damage of player by player:
+    attacker is holding netherite axe named "§0§lObsidian Cleaver"
+    
+    # Optional: Bleed effect
+    if chance of 30%:
+        apply wither 1 to victim for 3 seconds
+        send "&8You are bleeding..." to victim
+
+
+
+command /givecleaver <player>:
+    permission: op
+    trigger:
+        give arg-1 unbreakable netherite axe of sharpness 1 named "§0§lObsidian Cleaver" with lore "Crouch to use ability"
+
+command /spawncleaverboss:
+    permission: op
+    trigger:
+        spawn wither skeleton at player
+        set name of last spawned entity to "&8&lVoidbound Champion"
+        set max health of last spawned entity to 200
+        set health of last spawned entity to 200
+        apply strength 2 to last spawned entity for 99999 seconds
+        apply resistance 2 to last spawned entity for 99999 seconds
+        apply glowing to last spawned entity for 99999 seconds
+        set glowing of last spawned entity to true
+        set {_boss} to last spawned entity
+        broadcast "&8&l⚔ The Voidbound Champion has emerged..."
+        set {cleaverBoss} to {_boss}
+
+on death of wither skeleton:
+    if name of victim is "&8&lVoidbound Champion":
+        drop unbreakable netherite axe of sharpness 1 named "§0§lObsidian Cleaver" at location of victim
+        delete {cleaverBoss}
+        broadcast "&cThe Voidbound Champion has fallen. The Obsidian Cleaver is free..."
+        
+every 4 seconds:
+    if {cleaverBoss} is set:
+        loop all players in radius 5 around {cleaverBoss}:
+            damage loop-player by 5
+            push loop-player upward at speed 0.5
+            play sound "entity.wither.shoot" at loop-player
+            send "&7The Voidbound Champion slams the ground!" to loop-player
+        loop blocks in radius 6 around {cleaverBoss}:
+            if loop-block is cobweb:
+                set loop-block to air
+on sneak toggle:
+    if name of player's tool is "§0§lObsidian Cleaver":
+        if {cleaverCooldown::%uuid of player%} is not set:
+
+            # Ability effect on nearby players
+            loop all players in radius 5 around player:
+                if loop-player is not player:
+                    if {trust::%uuid of player%::*} does not contain uuid of loop-player:
+                        damage loop-player by 4
+                        push loop-player upward at speed 0.5
+                        play sound "entity.wither.shoot" at loop-player
+                        send "&7You have been slammed by %player%!" to loop-player
+
+            send "&8&lObsidian Slam &7unleashed!" to player
+
+            set {cleaverCooldown::%uuid of player%} to true
+            wait 30 seconds
+            delete {cleaverCooldown::%uuid of player%}
+            send "&aObsidian Cleaver is ready again." to player
+
+        else:
+            send "&7The cleaver is still recovering..." to player
+options:
+  duration: 20 seconds
+
+command /netherize [<offlineplayer>]:
+    permission: op
+    trigger:
+        if arg-1 is set:
+            set {_target} to arg-1
+        else:
+            set {_target} to player
+
+        set {_loc} to location of {_target}
+        set {_radius} to 2
+
+        # Clear lists
+        set {_blocks::*} to air
+        set {_blocks2::*} to air
+        set {_blocks3::*} to air
+
+        loop 5 times:
+            loop blocks in radius {_radius} around {_loc}:
+                set {unbreakable2::%loop-block%} to true
+
+                # For surface blocks: grass, dirt, sand variants, stone, cobblestone
+                if loop-block is grass block or dirt or sand or red sand or stone or cobblestone:
+                    set {_originalType} to loop-block's type
+                    set {_blockLoc} to loop-block's location
+                    add {_blockLoc} to {_blocks::*}
+                    set {_blocks::%{_blockLoc}%} to {_originalType}
+
+                    # Random nether block replacement
+                    set {_rand} to random integer between 1 and 5
+                    if {_rand} = 1:
+                        set loop-block to soul_sand
+                    else if {_rand} = 2:
+                        set loop-block to nether_wart_block
+                    else if {_rand} = 3:
+                        set loop-block to crimson_nylium
+                    else if {_rand} = 4:
+                        set loop-block to warped_nylium
+                    else:
+                        set loop-block to basalt
+
+                # For logs: replace with crimson stem
+                else if loop-block is oak log or spruce log or acacia log or dark oak log or cherry log or birch log or jungle log or mangrove log:
+                    set {_originalType2} to loop-block's type
+                    set {_blockLoc2} to loop-block's location
+                    add {_blockLoc2} to {_blocks2::*}
+                    set {_blocks2::%{_blockLoc2}%} to {_originalType2}
+
+                    set loop-block to crimson_stem
+
+            add 1 to {_radius}

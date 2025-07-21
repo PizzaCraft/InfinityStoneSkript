@@ -1,0 +1,590 @@
+on load:
+    set {customitems::soulstone} to nether star of curse of vanishing named "§6§lSoul Stone" with lore "§f§lYour attacks have a 10 percent change of inflicting withering for 5 seconds" and "§u§lRight-Click: Soul Bind - 1:30 cooldown" with custom model data 5
+    set {customitems::soulstone2} to nether star of curse of vanishing named "§6§lSoul Stone" with lore "§8§lPristine" and "§f§lYour attacks have a 10 percent change of inflicting withering for 5 seconds" and "§u§lRight-Click: Soul Bind - 1:30 cooldown" and "§6§lUnlucky - 3:00 cooldown" with custom model data 5
+    set {customitems::soulstone3} to nether star of curse of vanishing named "§6§lSoul Stone" with lore "§8§lPristine" and "§f§lYour attacks have a 10 percent change of inflicting withering for 5 seconds" and "§u§lRight-Click: Soul Bind - 1:30 cooldown" and "§6§lUnlucky - 3:00 cooldown" and "§6§lTrickery - 3:00 cooldown" with custom model data 5
+    set {customitems::soulstone-1} to nether star of curse of vanishing named "§6§lSoul Stone" with lore "§8§lDamaged" and "§f§lYour attacks have a 10 percent change of inflicting withering for 5 seconds"
+  
+
+
+on damage:
+    if attacker is a player:
+        if name of attacker's offhand tool is "§6§lSoul Stone":
+
+            # Weakness chance (5%)
+            set {_chance} to random integer between 1 and 100
+            if {_chance} <= 5:
+                apply wither 2 to victim for 6 seconds
+                execute console command "execute at %name of victim% run particle minecraft:large_smoke ~ ~ ~ 4 4 4 0 40"
+                execute console command "playsound minecraft:block.anvil.land master %name of attacker% ~ ~ ~ 1 1"
+
+on death:
+    set {_saved::*} to ""
+    loop all items in victim's inventory:
+        if name of loop-item contains "§6§lSoul Stone":
+            add loop-item to {_saved::*}
+    wait 1 tick
+    loop {_saved::*}:
+        give loop-value to victim
+        
+
+
+on rightclick:
+    if name of offhand item of player is "§6§lSoul Stone":
+
+        # Prevent multiple triggers in same tick
+        if {soulstone_processing::%player%} is set:
+            stop
+        set {soulstone_processing::%player%} to true
+        wait 1 tick
+        delete {soulstone_processing::%player%}
+
+        set {_item} to player's held item
+        {_item} is air or diamond sword or diamond axe or iron sword or iron axe or stone sword or stone axe:
+
+            # proceed
+
+            if {soulstone_cooldown::%player%} is set:
+                if {soulstone_cooldown_message::%player%} is not set:
+                    send "&6🔮 &cYour §6Soul Release &cability is on cooldown for §6%{soulstone_cooldown::%player%}%s" to player
+                    set {soulstone_cooldown_message::%player%} to true
+                    wait 20 ticks
+                    delete {soulstone_cooldown_message::%player%}
+                stop
+
+            if {DoubleClick::%uuid of player%} is not set:
+                set {DoubleClick::%uuid of player%} to true
+                wait 15 ticks
+                delete {DoubleClick::%uuid of player%}
+            else:
+                if {soulstone_activated::%player%} is set:
+                    stop
+                delete {DoubleClick::%uuid of player%}
+
+                # Check souls count
+                set {_souls} to {souls::%uuid of player%}
+                if {_souls} is not set:
+                    send "&cYou have no souls to release!" to player
+                    stop
+                if {_souls} <= 0:
+                    send "&cYou have no souls to release!" to player
+                    stop
+
+                # Consume all souls
+                set {souls::%uuid of player%} to 0
+
+                # Apply effects based on souls
+                if {_souls} <= 2:
+                    apply regeneration 1 to player for 5 seconds
+                    set {_effectName} to "Regeneration I (5s)"
+                else if {_souls} <= 5:
+                    apply regeneration 2 to player for 6 seconds replacing existing effect
+                    apply speed 1 to player for 6 seconds
+                    set {_effectName} to "Regeneration II & Speed I (6s)"
+                else if {_souls} <= 9:
+                    apply regeneration 2 to player for 8 seconds replacing existing effect
+                    apply speed 2 to player for 8 seconds replacing existing effect
+                    set {_effectName} to "Regeneration II (8s) & Speed II (8s)"
+                else:
+                    apply regeneration 2 to player for 10 seconds
+                    apply resistance 1 to player for 10 seconds
+                    apply absorption 2 to player for 10 seconds
+                    apply speed 2 to player for 10 seconds
+                    set {_effectName} to "Regeneration II, Resistance I, Absorption II, & Speed II (10s)"
+                  
+
+                send "&6🔮 &aYou have activated §6Soul Release§a: %{_effectName}%." to player
+                wait 2 seconds
+
+                # Particle effect around player (runs async)
+
+                # Sound effect
+
+                set {soulstone_activated::%player%} to true
+                set {soulstoneInUse::%player%} to true
+
+                # Start cooldown
+                set {soulstone_cooldown::%player%} to 60
+
+                while {soulstone_cooldown::%player%} > 0:
+                    wait 1 second
+                    subtract 1 from {soulstone_cooldown::%player%}
+
+                delete {soulstone_cooldown::%player%}
+                delete {soulstone_activated::%player%}
+                delete {soulstoneInUse::%player%}
+
+on death of living entity:
+    if attacker is a player:
+        if victim is a living entity:
+            if name of offhand item of attacker is "§6§lSoul Stone":
+                add 1 to {souls::%uuid of attacker%}
+                send "&5☠ &7You absorbed a soul! Souls collected: &6%{souls::%uuid of attacker%}%" to attacker
+
+
+
+            
+on right click with nether star:
+    if lore of player's tool contains "§u§lRight-Click: Soul Bind - 1:30 cooldown":
+        if {soulStoneCooldown1::%player%} > 0:
+            send "§cAbility is on cooldown! Remaining time: %{soulStoneCooldown1::%player%}% seconds" to player
+        else:
+            if {telekinesisActive::%player%} is not set:
+                # Find closest non-trusted player within 6 blocks
+                set {_target} to null
+                loop all players in radius 6 around player:
+                    if loop-player is not player:
+                        if {trust::%uuid of player%::*} does not contain uuid of loop-player:
+                            set {_target} to loop-player
+                            stop loop
+
+                if {_target} is set:
+                    set {soulInUse::%player%} to true
+                    send "§5Soul Stone: Soul Bound %name of {_target}%!" to player
+                    send "§cYou feel your soul draining!" to {_target}
+                    apply slowness 2 to {_target} for 10 seconds replacing existing effect
+                    apply mining fatigue to {_target} for 10 seconds replacing existing effect
+
+                    # Set active status and target
+                    set {telekinesisActive::%player%} to true
+                    set {soulBindTarget::%player%} to {_target}
+
+                    loop 8 times:
+                        wait 1 second
+                        execute console command "/damage %{_target}% 1.5"
+                        apply resistance 2 to player for 2 seconds replacing existing effect
+                        apply haste 2 to player for 2 seconds replacing existing effect
+                        set {_from} to location of player
+                        set {_to} to location of {_target}
+                        
+
+                        set {_distance} to distance between {_from} and {_to}
+                        set {_steps} to {_distance} * 5
+
+                        set {_dx} to (x-coordinate of {_to} - x-coordinate of {_from}) / {_steps}
+                        set {_dy} to (y-coordinate of {_to} - y-coordinate of {_from}) / {_steps}
+                        set {_dz} to (z-coordinate of {_to} - z-coordinate of {_from}) / {_steps}
+
+                        set {_loc} to {_from}
+                        add 1 to y-coordinate of {_loc}
+                        loop {_steps} times:
+                            draw 4 dust using dustOption(rgb(255, 140, 0), 1) at {_loc} with extra 0 with force
+                            add {_dx} to x-coordinate of {_loc}
+                            add {_dy} to y-coordinate of {_loc}
+                            add {_dz} to z-coordinate of {_loc}
+
+
+                        
+
+                    # End effect
+                    send "§5Soul Stone: Soul Drain ended." to player
+                    delete {soulBindTarget::%player%}
+                    delete {telekinesisActive::%player%}
+                    delete {soulInUse::%player%}
+
+                    # Start cooldown
+                    set {soulStoneCooldown1::%player%} to 90
+                    while {soulStoneCooldown1::%player%} > 0:
+                        wait 1 second
+                        subtract 1 from {soulStoneCooldown1::%player%}
+                    delete {soulStoneCooldown1::%player%}
+                    send "§eYour Soul Stone ability is ready to use again!" to player
+
+                else:
+                    send "§cNo valid target nearby to soul bind!" to player
+            else:
+                send "§cYou have already activated Soul Bind! Wait for it to expire before using again." to player
+
+
+
+command /resetSoul:
+    permission: op
+    trigger:
+        delete {telekinesisActive::%player%}
+        delete {soulstone_activated::%player%}
+        send "&aSoul Stone activation states reset."
+
+
+
+
+
+
+every 1 second:
+    loop all players:
+        if name of offhand item of loop-player is "§6§lSoul Stone":
+
+            # 💥 First cooldown or “Active..” in red
+            if {soulInUse::%loop-player%} is set:
+                set {_cd1} to "&6🌀 &cActive.."
+            else if {soulstoneCooldown::%loop-player%} is set:
+                set {_total1} to {soulstoneCooldown::%loop-player%}
+                
+                if {_total1} <= 0:
+                    set {_cd1} to "&6🌀 &aReady!"
+                    delete {soulstoneCooldown::%loop-player%}
+                else:
+                    set {_min} to floor({_total1} / 60)
+                    set {_sec} to {_total1} - {_min} * 60
+
+                    if {_min} > 0:
+                        set {_cd1} to "&6🌀 &b%{_min}%m %{_sec}%s"
+                    else:
+                        set {_cd1} to "&6🌀 &b%{_sec}%s"
+            else:
+                set {_cd1} to "&6🌀 &aReady!"
+
+            if {souls::%uuid of loop-player%} is set:
+                set {_cd2} to "&6👻 &b%{souls::%uuid of loop-player%}% Souls"
+
+            # Send combined action bar
+            send action bar "%{_cd1}% %{_cd2}%" to loop-player
+
+
+
+
+# Prevent movement while frozen
+on player move:
+    if {frozen::%event-player%} is set:
+        cancel event
+
+# Prevent block interactions while frozen
+on place:
+    if {frozen::%event-player%} is set:
+        cancel event
+
+on break:
+    if {frozen::%event-player%} is set:
+        cancel event
+
+# Prevent melee attacks while frozen, allow projectiles
+on damage:
+    if attacker is a player:
+        if {frozen::%attacker%} is set:
+            if damage cause is not projectile:
+                cancel event
+
+
+variables:
+    {unluckyActive::%player%} = false
+    {soulStoneCooldown::%player%} = 0
+on player join:
+    delete {frozen::%player%}
+    delete {powerstoneInUse::%player%}
+    delete {powerInUse::%player%}
+    delete {timestoneInUse::%player%}
+    delete {timeInUse::%player%}
+    delete {spacestoneInUse::%player%}
+    delete {spaceInUse::%player%}
+    delete {timestoneInUse::%player%}
+    delete {timeInUse::%player%}
+    delete {realitystoneInUse::%player%}
+    delete {realityInUse::%player%}
+    delete {soulstoneInUse::%player%}
+    delete {soulInUse::%player%}
+on leftclick with nether star:
+    if event-player is set: # Ensures only players trigger the event
+        if lore of event-player's tool contains "§6§lUnlucky - 3:00 cooldown":
+            if {soulStoneCooldown::%event-player%} > 0:
+                set {_remaining} to {soulStoneCooldown::%event-player%}
+                send "§cAbility is on cooldown! Remaining time: %{_remaining}% seconds" to event-player
+            else:
+                if {unluckyReady::%event-player%} is not set: # Prevent multiple activations
+                    delete {unluckyEffect::%event-player%} # Ensures caster NEVER gets affected
+                    send "§bYou have activated Unlucky! Hit a player within 10 seconds to apply the effect." to event-player
+                    set {unluckyReady::%event-player%} to true # Marks ability as ready (NEW variable name)
+                    wait 10 seconds
+                    delete {unluckyReady::%event-player%}
+                    send "§cYour Unlucky activation has expired." to event-player
+                    
+                    # Start cooldown
+                    set {soulStoneCooldown::%event-player%} to 180
+                    while {soulStoneCooldown::%event-player%} > 0:
+                        wait 1 second
+                        set {soulStoneCooldown::%event-player%} to {soulStoneCooldown::%event-player%} - 1
+                    
+                    delete {soulStoneCooldown::%event-player%}
+                    send "§eYour Soul Stone second ability is ready to use again!" to event-player
+
+on damage:
+    if {unluckyReady::%attacker%} is set: # Check if attacker has activated the ability
+        delete {unluckyEffect::%attacker%} # Ensure attacker is NEVER affected
+        if victim is a player: # Ensure the target is a player
+            if victim != attacker: # Correct entity comparison
+                if {unluckyEffect::%victim%} is set:
+                    send "this player has already been affected by unlucky!" to attacker
+                else:
+                    set {unluckyEffect::%victim%} to true
+                    send "§6You have been affected by Unlucky!" to victim
+                    send "§aYou have successfully used Unlucky on %victim%!" to attacker
+                    delete {unluckyReady::%attacker%} # Remove activation after a successful hit
+                    wait 20 seconds
+                    delete {unluckyEffect::%victim%}
+                    send "§eThe Unlucky effect has ended!" to victim
+
+
+# Prevent actions randomly (50% chance)
+on place:
+    if {unluckyEffect::%event-player%} is set:
+        if chance of 50%:
+            cancel event
+            play sound "BLOCK_ANVIL_LAND" at event-player
+            send "§cUnlucky! Your action failed!" to event-player
+
+on break:
+    if {unluckyEffect::%event-player%} is set:
+        if chance of 50%:
+            cancel event
+            play sound "BLOCK_ANVIL_LAND" at event-player
+            send "§cUnlucky! Your action failed!" to event-player
+
+on damage:
+    if {unluckyEffect::%attacker%} is set:
+        if chance of 50%:
+            cancel event
+            play sound "BLOCK_ANVIL_LAND" at attacker
+            send "§cUnlucky! Your action failed!" to attacker
+
+on consume:
+    if {unluckyEffect::%event-player%} is set:
+        if chance of 50%:
+            cancel event
+            play sound "BLOCK_ANVIL_LAND" at event-player
+            send "§cUnlucky! Your action failed!" to event-player
+
+
+
+on damage:
+    if attacker is a player:
+        if attacker's tool's name is "§6§lSoul Stone": # Ensures player is holding Soul Stone
+            if lore of attacker's tool contains "§6§lTrickery - 3:00 cooldown":
+                if {soulStoneCooldown2::%attacker%} is set:
+                    set {_remaining} to {soulStoneCooldown2::%attacker%}
+                    send "§cUltimate is on cooldown! Remaining time: %{_remaining}% seconds" to attacker
+                    cancel event
+                else:
+                    if {soulStoneTrigger2::%attacker%} is set: # Prevents repeat activations
+                        cancel event
+                    else:
+                        set {soulStoneTrigger2::%attacker%} to true
+
+
+                        send "&aYou have used Trickery on %victim%!" to attacker
+                    
+                        # Save items in the hotbar (slots 0 to 8)
+                        loop 9 times:
+                            set {_hotbar::%loop-number%} to slot (loop-number - 1) of victim
+
+                        # Shuffle using random swapping
+                        loop 9 times:
+                            set {_i} to loop-number-1
+                            set {_j} to random integer between 1 and 9
+                            # Swap {_hotbar::%i%} and {_hotbar::%j%}
+                            set {_temp} to {_hotbar::%{_i}%}
+                            set {_hotbar::%{_i}%} to {_hotbar::%{_j}%}
+                            set {_hotbar::%{_j}%} to {_temp}
+
+                        # Apply shuffled items back to player's hotbar
+                        loop 9 times:
+                            set slot (loop-number - 1) of victim to {_hotbar::%loop-number%}
+
+                        send "&aYour hotbar has been shuffled!" to victim
+                        wait 5 seconds
+
+                        loop 9 times:
+                            set {_hotbar::%loop-number%} to slot (loop-number - 1) of victim
+
+                        # Shuffle using random swapping
+                        loop 9 times:
+                            set {_i} to loop-number-1
+                            set {_j} to random integer between 1 and 9
+                            # Swap {_hotbar::%i%} and {_hotbar::%j%}
+                            set {_temp} to {_hotbar::%{_i}%}
+                            set {_hotbar::%{_i}%} to {_hotbar::%{_j}%}
+                            set {_hotbar::%{_j}%} to {_temp}
+
+                        # Apply shuffled items back to player's hotbar
+                        loop 9 times:
+                            set slot (loop-number - 1) of victim to {_hotbar::%loop-number%}
+
+                        send "&aYour hotbar has been shuffled!" to victim
+                        wait 5 seconds
+
+                        loop 9 times:
+                            set {_hotbar::%loop-number%} to slot (loop-number - 1) of victim
+
+                        # Shuffle using random swapping
+                        loop 9 times:
+                            set {_i} to loop-number-1
+                            set {_j} to random integer between 1 and 9
+                            # Swap {_hotbar::%i%} and {_hotbar::%j%}
+                            set {_temp} to {_hotbar::%{_i}%}
+                            set {_hotbar::%{_i}%} to {_hotbar::%{_j}%}
+                            set {_hotbar::%{_j}%} to {_temp}
+
+                        # Apply shuffled items back to player's hotbar
+                        loop 9 times:
+                            set slot (loop-number - 1) of victim to {_hotbar::%loop-number%}
+
+                        send "&aYour hotbar has been shuffled!" to victim
+                        wait 5 seconds
+
+                        loop 9 times:
+                            set {_hotbar::%loop-number%} to slot (loop-number - 1) of victim
+
+                        # Shuffle using random swapping
+                        loop 9 times:
+                            set {_i} to loop-number-1
+                            set {_j} to random integer between 1 and 9
+                            # Swap {_hotbar::%i%} and {_hotbar::%j%}
+                            set {_temp} to {_hotbar::%{_i}%}
+                            set {_hotbar::%{_i}%} to {_hotbar::%{_j}%}
+                            set {_hotbar::%{_j}%} to {_temp}
+
+                        # Apply shuffled items back to player's hotbar
+                        loop 9 times:
+                            set slot (loop-number - 1) of victim to {_hotbar::%loop-number%}
+
+                        send "&aYour hotbar has been shuffled!" to victim
+                        wait 5 seconds
+
+                        loop 9 times:
+                            set {_hotbar::%loop-number%} to slot (loop-number - 1) of victim
+
+                        # Shuffle using random swapping
+                        loop 9 times:
+                            set {_i} to loop-number-1
+                            set {_j} to random integer between 1 and 9
+                            # Swap {_hotbar::%i%} and {_hotbar::%j%}
+                            set {_temp} to {_hotbar::%{_i}%}
+                            set {_hotbar::%{_i}%} to {_hotbar::%{_j}%}
+                            set {_hotbar::%{_j}%} to {_temp}
+
+                        # Apply shuffled items back to player's hotbar
+                        loop 9 times:
+                            set slot (loop-number - 1) of victim to {_hotbar::%loop-number%}
+
+                        send "&aYour hotbar has been shuffled!" to victim
+                        wait 5 seconds
+
+                        loop 9 times:
+                            set {_hotbar::%loop-number%} to slot (loop-number - 1) of victim
+
+                        # Shuffle using random swapping
+                        loop 9 times:
+                            set {_i} to loop-number-1
+                            set {_j} to random integer between 1 and 9
+                            # Swap {_hotbar::%i%} and {_hotbar::%j%}
+                            set {_temp} to {_hotbar::%{_i}%}
+                            set {_hotbar::%{_i}%} to {_hotbar::%{_j}%}
+                            set {_hotbar::%{_j}%} to {_temp}
+
+                        # Apply shuffled items back to player's hotbar
+                        loop 9 times:
+                            set slot (loop-number - 1) of victim to {_hotbar::%loop-number%}
+
+                        send "&aYour hotbar has been shuffled!" to victim
+                        wait 5 seconds
+
+                        loop 9 times:
+                            set {_hotbar::%loop-number%} to slot (loop-number - 1) of victim
+
+                        # Shuffle using random swapping
+                        loop 9 times:
+                            set {_i} to loop-number-1
+                            set {_j} to random integer between 1 and 9
+                            # Swap {_hotbar::%i%} and {_hotbar::%j%}
+                            set {_temp} to {_hotbar::%{_i}%}
+                            set {_hotbar::%{_i}%} to {_hotbar::%{_j}%}
+                            set {_hotbar::%{_j}%} to {_temp}
+
+                        # Apply shuffled items back to player's hotbar
+                        loop 9 times:
+                            set slot (loop-number - 1) of victim to {_hotbar::%loop-number%}
+
+                        send "&aYour hotbar has been shuffled!" to victim
+                        wait 5 seconds
+
+                        loop 9 times:
+                            set {_hotbar::%loop-number%} to slot (loop-number - 1) of victim
+
+                        # Shuffle using random swapping
+                        loop 9 times:
+                            set {_i} to loop-number-1
+                            set {_j} to random integer between 1 and 9
+                            # Swap {_hotbar::%i%} and {_hotbar::%j%}
+                            set {_temp} to {_hotbar::%{_i}%}
+                            set {_hotbar::%{_i}%} to {_hotbar::%{_j}%}
+                            set {_hotbar::%{_j}%} to {_temp}
+
+                        # Apply shuffled items back to player's hotbar
+                        loop 9 times:
+                            set slot (loop-number - 1) of victim to {_hotbar::%loop-number%}
+
+                        send "&aYour hotbar has been shuffled!" to victim
+                        wait 5 seconds
+
+                        
+
+                        # Set cooldown to 180 seconds (3 minutes)
+                        set {soulStoneCooldown2::%attacker%} to 180
+                        
+                        # Countdown for cooldown
+                        while {soulStoneCooldown2::%attacker%} > 0:
+                            wait 1 second
+                            set {soulStoneCooldown2::%attacker%} to {soulStoneCooldown2::%attacker%} - 1
+                            
+                        delete {soulStoneCooldown2::%attacker%}
+                        delete {soulStoneTrigger2::%attacker%}
+                        send "§eYour Soul Stone ultimate is ready to use again!" to attacker
+
+
+
+variables:
+    {cooldown.%player%} = 0
+
+variables:
+    {cooldown.%player%} = 0
+    {autoEnchant.%player%} = false  # Default: Auto Enchant enabled
+
+
+on sneak toggle:
+    if {autoEnchant.%player%} is false:
+        stop  # Prevent activation if disabled
+    if {cooldown.%player%} is greater than now:
+        send "&csoul Stone auto enchant is still on cooldown!"
+        stop
+    if player's offhand tool's name is "§6§lSoul Stone":
+        execute console command "/enchant %player% soul_speed 3"
+        execute console command "/enchant %player% unbreaking 3"
+        send "&aYour item has been enchanted!"
+        set {cooldown.%player%} to now + 60 seconds
+
+
+
+ 
+on drop:
+    if event-item's name is "§6§lSoul Stone":
+        cancel event
+        send "&cYou cannot drop the soul Stone!" to player
+
+on inventory click:
+    set {_invtype} to "%type of player's current inventory%" # Convert inventory type to text
+    if {_invtype} is "chest inventory" or "barrel inventory" or "shulker box inventory" or "crafter inventory" or "ender chest inventory" or "hopper inventory" or "grindstone inventory" or "crafting inventory" or "smithing inventory" or "loom inventory" or "cartography inventory" or "stonecutter inventory" or "furnace inventory" or "blast furnace inventory":
+        if event-item is nether star:
+            if event-item's name is "§6§lSoul Stone":
+                cancel event
+                send "&cYou cannot store the soul Stone in this container!" to player
+
+on craft of beacon:
+    loop all items in event-inventory:
+        if loop-item is nether star:
+            if loop-item's name is "§6§lSoul Stone":
+                cancel event
+                send "&cYou cannot use the soul Stone to craft a beacon!" to player
+
+on inventory click:
+    if player's current inventory is anvil inventory: # Ensures player is using an anvil
+        if clicked slot is 0 or 1 or 2: # Anvil slots (Left input, Right input, Output)
+            if event-item is nether star:
+                if event-item's name is "§6§lSoul Stone":
+                    cancel event
+                    send "&cYou cannot modify the soul Stone in an anvil!" to player

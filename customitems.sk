@@ -1,0 +1,147 @@
+on load:
+    set {customitems::assassinblade} to unbreakable netherite sword of sharpness 4 named "§2§lAssassin Blade" with custom model data 1
+    set {customitems::netherfragment} to nether brick named "§5§lNether Fragment" with custom model data 30
+    set {customitems::netherorb} to nether star named "§5§lNether Fragment" with custom model data 31
+    set {customitems::reroll} to diamond named "§b§lReroller" with lore "§f§lRight click to use"
+
+
+on enchant:
+    if tool is netherite sword named "§2§lAssassin Blade":
+        cancel event
+        send "&cYou cannot enchant the Assassin Blade."
+
+every 10 seconds:
+    loop all players:
+        set {_hasOrb} to false
+        loop all items in loop-player's inventory:
+            if loop-item is not air:
+                if name of loop-item is "§5§lNether Fragment":
+                    set {_hasOrb} to true
+                    stop loop
+        if {_hasOrb} is true:
+            apply potion of glowing of tier 1 to loop-player for 10 seconds
+
+
+  
+on death of player:
+    attacker is a player
+    if attacker is holding {customitems::assassinblade}:
+        if {last_killed.%attacker's uuid%} is not victim's uuid:
+            if {damage.%attacker's uuid%} < 50:
+              add 5 to {damage.%attacker's uuid%}
+              add 1 to {kills.%attacker's uuid%}
+              set {_kills} to {kills.%attacker's uuid%}
+              set {last_killed.%attacker's uuid%} to victim's uuid
+              # Update lore
+              set lore of attacker's tool to "§7Kills: %{_kills}%"
+              send "§2§lYour Assassin Blade now deals %{damage.%attacker's uuid%}% percent bonus damage!" to attacker
+          
+        else:
+            send "§2§lYou killed this player more than 1 time in a row, your sword has not been buffed!" to attacker
+
+on damage:
+    attacker is a player
+    if attacker is holding {customitems::assassinblade}:
+        add ({damage.%attacker's uuid%} / 100) * damage to damage
+
+on rightclick with netherite sword:
+    if player is set: # Ensures only players trigger the event
+        if player's tool is {customitems::assassinblade}:
+            if {assassinBladeCooldown::%player%} is set:
+                set {_remaining} to {assassinBladeCooldown::%player%}
+                send "§cAbility is on cooldown! Remaining time: %{_remaining}% seconds" to player
+            else:
+                if {assassinBladeTrigger::%player%} is not set: # Prevents repeat activations
+                    set {assassinBladeTrigger::%player%} to true
+                    
+                    loop 5 times:
+                        execute console command "score particles target:%uuid of player% shape:circle color:green maxRadius:3 rate:100 radiusRate:4 extend:2 time:100"
+                        wait 20 tick
+                    loop all players in radius 50 around player:
+                        if loop-player is not player:
+                            apply potion of glowing of tier 1 to loop-player for 20 seconds
+                    set {assassinBladeCooldown::%player%} to 70
+                
+                    # Countdown for cooldown
+                    while {assassinBladeCooldown::%player%} > 0:
+                        wait 1 second
+                        set {assassinBladeCooldown::%player%} to {assassinBladeCooldown::%player%} - 1
+                    
+                    delete {assassinBladeCooldown::%player%}
+                    delete {assassinBladeTrigger::%player%}
+                    send "§eYour Assassin Blade ability is ready to use again!" to player
+
+# When player right clicks with reroll item
+on rightclick with diamond:
+    if player's tool is {customitems::reroll}:
+        cancel event
+
+        # Remove one reroll item from player's inventory
+        remove 1 of player's tool from player's inventory
+
+
+        loop all items in player's inventory:
+            if loop-item is nether star:
+                if name of loop-item is "§5§lPower Stone":
+                    remove loop-item from player's inventory
+                if name of loop-item is "§6§lSoul Stone":
+                    remove loop-item from player's inventory
+                if name of loop-item is "§1§lSpace Stone":
+                    remove loop-item from player's inventory
+                if name of loop-item is "§2§lTime Stone":
+                    remove loop-item from player's inventory
+                if name of loop-item is "§4§lReality Stone":
+                    remove loop-item from player's inventory
+                if name of loop-item is "§e§lMind Stone":
+                    remove loop-item from player's inventory
+
+
+
+
+
+        # Build the list of custom stones
+        clear {_stones::*}
+        add "powerstone" to {_stones::*}
+        add "soulstone" to {_stones::*}
+        add "spacestone" to {_stones::*}
+        add "timestone" to {_stones::*}
+        add "realitystone" to {_stones::*}
+        add "mindstone" to {_stones::*}
+        # Pick one at random
+        set {_randomType} to random element out of {_stones::*}
+        set {_randomStone} to {customitems::%{_randomType}%}
+
+        # Give the chosen custom item to player
+        give {_randomStone} to player
+
+        # Send confirmation
+        send "&bYou received a &7%name of {_randomStone}%&b!" to player
+
+ 
+on drop:
+    if event-item's name is "§5§lNether Fragment":
+        cancel event
+        send "&cYou cannot drop the space Stone!" to player
+
+on inventory click:
+    set {_invtype} to "%type of player's current inventory%" # Convert inventory type to text
+    if {_invtype} is "chest inventory" or "barrel inventory" or "shulker box inventory" or "crafter inventory" or "ender chest inventory" or "hopper inventory" or "grindstone inventory" or "crafting inventory" or "smithing inventory" or "loom inventory" or "cartography inventory" or "stonecutter inventory" or "furnace inventory" or "blast furnace inventory":
+        if event-item is nether star:
+            if event-item's name is "§5§lNether Fragment":
+                cancel event
+                send "&cYou cannot store the space Stone in this container!" to player
+
+on craft of beacon:
+    loop all items in event-inventory:
+        if loop-item is nether star:
+            if loop-item's name is "§5§lNether Fragment":
+                cancel event
+                send "&cYou cannot use the space Stone to craft a beacon!" to player
+
+on inventory click:
+    if player's current inventory is anvil inventory: # Ensures player is using an anvil
+        if clicked slot is 0 or 1 or 2: # Anvil slots (Left input, Right input, Output)
+            if event-item is nether star:
+                if event-item's name is "§5§lNether Fragment":
+                    cancel event
+                    send "&cYou cannot modify the space Stone in an anvil!" to player

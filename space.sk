@@ -1,0 +1,363 @@
+on load:
+    set {customitems::spacestone} to nether star of curse of vanishing named "§1§lSpace Stone" with lore "§f§lPassive: Offhand Right-Click: Double Jump Your attacks have a 5 percent chance of inflicting slowness" and "§9§lRight-Click: Gravity Manipulation - 1:30 cooldown" with custom model data 4
+    set {customitems::spacestone2} to nether star of curse of vanishing named "§1§lSpace Stone" with lore "§8§lPristine" and "§f§lPassive: Offhand Right-Click: Double Jump Your attacks have a 5 percent chance of inflicting slowness" and "§9§lRight-Click: Gravity Manipulation - 1:30 cooldown" and "§9§lLeft-Click: Asteroid Cluster - 2:00 Cooldown" with custom model data 4
+    set {customitems::spacestone3} to nether star of curse of vanishing named "§1§lSpace Stone" with lore "§8§lPristine" and "§f§lPassive: Offhand Right-Click: Double Jump Your attacks have a 5 percent chance of inflicting slowness" and "§9§lRight-Click: Gravity Manipulation - 1:30 cooldown" and "§9§lLeft-Click: Asteroid Cluster - 2:00 Cooldown" and "§9§lMainhand + Hit Player: Black Hole - 3:00 cooldown" with custom model data 4
+    set {customitems::spacestone-1} to nether star of curse of vanishing named "§1§lSpace Stone" with lore "§8§lDamaged" and "§f§lPassive: Offhand Right-Click: Double Jump Your attacks have a 5 percent chance of inflicting slowness"
+
+on damage:
+    if attacker is a player:
+        if attacker's offhand tool's name is "§1§lSpace Stone": # Ensures player has space Stone
+            set {_chance} to random integer between 1 and 100
+            if {_chance} <= 5: # 5% chance to trigger Weakness
+                apply slowness 2 to victim for 8 seconds
+                
+                # Spawn black particles at victim's location
+                execute console command "/execute at %victim% run particle minecraft:large_smoke ~ ~ ~ 4 4 4 0 40"
+                
+                # Play anvil sound at victim's location
+                execute console command "/playsound minecraft:block.anvil.land master %attacker%"
+
+every 10 seconds:
+    loop all players:
+        if loop-player's tool's name is "§1§lSpace Stone": # Main hand check
+            apply potion of speed of tier 1 to loop-player for 10 seconds
+        else if loop-player's offhand tool's name is "§1§lSpace Stone": # Offhand check
+            apply potion of speed of tier 1 to loop-player for 10 seconds
+            
+on death:
+    set {_saved::*} to ""
+    loop all items in victim's inventory:
+        if name of loop-item contains "§1§lSpace Stone":
+            add loop-item to {_saved::*}
+    wait 1 tick
+    loop {_saved::*}:
+        give loop-value to victim
+
+
+on projectile shoot:
+    projectile is a fireball
+    shooter is a player
+    projectile has metadata "meteor"
+    set metadata "shooter" of projectile to uuid of shooter
+
+on projectile hit:
+    projectile is a fireball
+    projectile has metadata "meteor"
+    
+    set {_loc} to location of projectile
+    set {_shooterUUID} to metadata "shooter" of projectile
+
+    play sound "entity.generic.explode" with volume 1 and pitch 1 at {_loc} for all players
+
+    loop all players in radius 3 around {_loc}:
+        if uuid of loop-player is not {_shooterUUID}:
+            set {_victim} to loop-player
+            set {_hp} to health of {_victim}
+            execute console command "/execute at %{_victim}% run particle minecraft:scrape ~ ~ ~ 1 1 1 0 20"
+            subtract 2 from {_hp}
+            if {_hp} <= 0:
+                kill {_victim}
+            else:
+                set health of {_victim} to {_hp}
+
+
+
+
+
+
+on left click with nether star:
+    if lore of player's tool contains "§9§lLeft-Click: Asteroid Cluster - 2:00 cooldown":
+
+        if {spaceStoneCooldown::%player%} is set:
+            set {_remaining} to {spaceStoneCooldown::%player%}
+            send "§cAbility is on cooldown! %{_remaining}%s left." to player
+            stop
+        else:
+            send "&aYou activated Asteroid Cluser!" to player
+            loop 3 times:
+                loop all players in radius 8 around player:
+                    set {_p} to loop-player
+                    if {_p} is not player:
+                        if {trust::%uuid of player%::*} does not contain uuid of {_p}: # Ignore trusted players
+                            set {_targetLoc} to location of {_p}
+                            set {_startLoc} to location of player
+                            add 10 to y-coordinate of {_startLoc}
+
+                            # Calculate velocity
+                            set {_x} to x-coordinate of {_targetLoc} - x-coordinate of {_startLoc}
+                            set {_y} to y-coordinate of {_targetLoc} - y-coordinate of {_startLoc}
+                            set {_z} to z-coordinate of {_targetLoc} - z-coordinate of {_startLoc}
+                            set {_speed} to 0.75
+                            set {_vx} to {_x} * {_speed}
+                            set {_vy} to {_y} * {_speed} + 0.2
+                            set {_vz} to {_z} * {_speed}
+
+                            spawn a fireball at {_startLoc}
+                            set metadata "meteor" of last spawned entity to "true"
+                            wait 1 tick
+                            set velocity of last spawned entity to vector({_vx}, {_vy}, {_vz})
+                            wait 10 ticks
+
+        
+        # Cooldown
+        set {spaceStoneCooldown::%player%} to 90
+        while {spaceStoneCooldown::%player%} > 0:
+            wait 1 second
+            set {spaceStoneCooldown::%player%} to {spaceStoneCooldown::%player%} - 1
+
+        delete {spaceStoneCooldown::%player%}
+        send "§eYour Asteroid Cluser is ready again!" to player
+
+
+on rightclick with nether star:
+    if player is set: # Ensures only players trigger the event
+        if lore of player's tool contains "§9§lRight-Click: Gravity Manipulation - 1:30 Cooldown":
+            if {spaceStoneCooldown1::%player%} is set:
+                set {_remaining1} to {spaceStoneCooldown1::%player%}
+                send "§cSecond Ability is on cooldown! Remaining time: %{_remaining1}% seconds" to player
+            else:
+                if {spaceStoneTrigger1::%player%} is not set: # Prevents repeat activations
+                    set {spaceStoneTrigger1::%player%} to true
+                    set {spaceInUse::%player%} to true
+                    execute console command "/score particles target:%uuid of player% shape:circle color:blue maxRadius:8 rate:100 radiusRate:6 extend:2 time:1000"
+                    wait 15 tick
+                    execute console command "/score particles target:%uuid of player% shape:circle color:blue maxRadius:8 rate:100 radiusRate:6 extend:2 time:1000"
+                    
+                    execute console command "/playsound minecraft:entity.firework_rocket.twinkle master %name of player%"
+                    # Launch nearby untrusted players (except self)
+                    loop all players in radius 8 around player:
+                        if loop-player is not player:
+                            if {trust::%uuid of player%::*} does not contain uuid of loop-player:
+                                push loop-player upwards with velocity 2
+                                send "§bYou were launched by a Gravity Manipulation!" to loop-player
+                                wait 1 second
+                                set velocity of loop-player to vector(0, -2, 0)
+                                send "§cYou were slammed by space energy!" to loop-player
+                    delete {spaceInUse::%player%}
+
+                    # Cooldown timer
+                    set {spaceStoneCooldown1::%player%} to 120
+
+                    while {spaceStoneCooldown1::%player%} > 0:
+                        wait 1 second
+                        set {spaceStoneCooldown1::%player%} to {spaceStoneCooldown1::%player%} - 1
+
+                    delete {spaceStoneCooldown1::%player%}
+                    delete {spaceStoneTrigger1::%player%}
+                    send "§eYour Space Stone ability is ready to use again!" to player
+every 1 second:
+    loop all players:
+        if name of offhand item of loop-player is "§1§lSpace Stone":
+            # ⏳ Main cooldown or “Active..”
+            if {spaceInUse::%loop-player%} is set:
+                set {_cd1} to "&9☄ &cActive.."
+            else if {spaceStoneCooldown1::%loop-player%} is set:
+                set {_total1} to {spaceStoneCooldown1::%loop-player%}
+                set {_min} to floor({_total1} / 60)
+                set {_sec} to {_total1} - {_min} * 60
+
+                if {_min} > 0:
+                    set {_cd1} to "&9☄ &b%{_min}%m %{_sec}%s"
+                else:
+                    set {_cd1} to "&9☄ &b%{_sec}%s"
+            else:
+                set {_cd1} to "&9☄ &aReady!"
+
+            # 🕒 Secondary cooldown or “Active..”
+            if {spaceStone.cooldown.%loop-player%} is true:
+                set {_cd2} to "&9☁ &bWait"
+            else:
+                set {_cd2} to "&9☁ &aReady!"
+
+            # Send combined action bar
+            send action bar "%{_cd1}% %{_cd2}%" to loop-player
+            
+
+
+on damage:
+    if attacker is a player:
+        if attacker's tool's name is "§1§lSpace Stone": # Ensures player is holding space Stone
+            if lore of attacker's tool contains "§9§lMainhand + Hit Player: Black Hole - 3:00 cooldown":
+                if {spaceStoneCooldown2::%attacker%} is set:
+                    set {_remaining} to {spaceStoneCooldown2::%attacker%}
+                    send "§cUltimate is on cooldown! Remaining time: %{_remaining}% seconds" to attacker
+                    cancel event
+                else:
+                    if {spaceStoneTrigger2::%attacker%} is not set: # Prevents repeat activations
+                        set {spaceStoneTrigger2::%attacker%} to true
+                        set {spaceStoneActive::%attacker%} to true
+
+                        
+                        send "§8&l[SPACE]&7 Black Hole activated for 15 seconds!" to attacker
+                        execute console command "/score particles target:%uuid of attacker% shape:blackhole particle:smoke points:60 radius:6 rate:1 mode:1 time:300"
+                        loop 15 times:
+                            loop players in radius 8 around attacker:
+                                if loop-player is not attacker:
+                                    if {trust::%attacker%::*} does not contain uuid of loop-player:
+                                        apply potion effect of slowness of tier 10 for 3 seconds to loop-player
+                                        wait 20 ticks
+                                        set {blackhole::%loop-player%} to true
+                                    
+                            
+                        loop all players:
+                            delete {blackhole::%loop-player%}
+                        send "§8&l[SPACE]&7 Black Hole has dissipated." to attacker
+
+                        # Set 3-minute cooldown
+                        set {spaceStoneCooldown2::%attacker%} to 180
+                        
+                        while {spaceStoneCooldown2::%attacker%} > 0:
+                            wait 1 second
+                            set {spaceStoneCooldown2::%attacker%} to {spaceStoneCooldown2::%attacker%} - 1
+                        
+                        # Cleanup after 30 seconds
+                        delete {spaceStoneActive::%attacker%}
+                        delete {spaceStoneMultiplier::%attacker%}
+
+                        # Set cooldown (5 minutes)
+                        set {spaceStoneCooldown2::%attacker%} to 300
+                    
+                        # Countdown for cooldown
+                        while {spaceStoneCooldown2::%attacker%} > 0:
+                            wait 1 second
+                            set {spaceStoneCooldown2::%attacker%} to {spaceStoneCooldown2::%attacker%} - 1
+                        
+                        delete {spaceStoneCooldown2::%attacker%}
+                        delete {spaceStoneTrigger2::%attacker%}
+                        send "§eYour space Stone ultimate is ready to use again!" to attacker
+
+
+# Reset double jump on landing
+on player move:
+    if player is on ground:
+        delete {spaceStone.hasDoubleJumped.%uuid of player%}
+
+on right click:
+    if name of player's offhand item is "§1§lSpace Stone":
+        if clicked block is set:
+            stop
+
+        if player's tool is edible:
+            stop
+
+        # Only allow if player is midair (not on ground)
+        if player is on ground:
+            stop
+
+        # Check if already double-jumped in this airtime
+        if {spaceStone.hasDoubleJumped.%uuid of player%} is set:
+            send "&cYou already used your double jump!" to player
+            stop
+
+        # Prevent spam by cooldown and debounce
+        if {spaceStone.lastRightClick.%uuid of player%} is set:
+            if difference between now and {spaceStone.lastRightClick.%uuid of player%} < 500 milliseconds:
+                stop
+        set {spaceStone.lastRightClick.%uuid of player%} to now
+
+        if {spaceStone.cooldown.%uuid of player%} is true:
+            send "&c⏳ You cannot double jump yet! Cooldown active." to player
+            stop
+
+        # Mark that player has double jumped this airtime
+        set {spaceStone.hasDoubleJumped.%uuid of player%} to true
+
+        send "&9☄ &fYou used Double Jump! Cooldown 5 seconds." to player
+
+        push player forward at speed 0.6
+        push player up at speed 0.6
+
+        loop 15 times:
+            set {_loc} to location of player
+            draw 4 dust using dustOption(rgb(0, 0, 139), 1) at {_loc} with extra 0 with force
+            wait 1 tick
+
+        set {spaceStone.cooldown.%uuid of player%} to true
+        wait 100 ticks
+        set {spaceStone.cooldown.%uuid of player%} to false
+
+
+
+
+
+on damage:
+    if damage cause is fall:
+        if name of victim's tool is "§1§lSpace Stone":
+            cancel event
+        if name of victim's offhand item is "§1§lSpace Stone":
+            cancel event
+
+
+
+
+
+
+
+on place:
+    if {blackhole::%player%} is set:
+        cancel event
+        send "&8The black hole prevents block placement!" to player
+
+on right click:
+    if {blackhole::%player%} is set:
+        if player's tool is ender pearl or wind charge:
+            cancel event
+            send "&8The black hole warps space — you can't escape!" to player
+
+on shoot:
+    if shooter is a player:
+        if {blackhole::%shooter%} is set:
+            if projectile is ender pearl or wind charge:
+                cancel event
+                send "&8The black hole distorts space — projectiles are suppressed!" to shooter
+
+
+variables:
+    {cooldown.%player%} = 0
+
+variables:
+    {cooldown.%player%} = 0
+    {autoEnchant.%player%} = false  # Default: Auto Enchant enabled
+
+
+on sneak toggle:
+    if {autoEnchant.%player%} is false:
+        stop  # Prevent activation if disabled
+    if {cooldown.%player%} is greater than now:
+        send "&cspace Stone auto enchant is still on cooldown!"
+        stop
+    if player's offhand tool's name is "§1§lSpace Stone":
+        execute console command "/enchant %player% aqua_infinity"
+        execute console command "/enchant %player% respiration 3"
+        execute console command "/enchant %player% depth_strider 3"
+        send "&aYour item has been auto enchanted!"
+        set {cooldown.%player%} to now + 60 seconds
+
+ 
+on drop:
+    if event-item's name is "§1§lSpace Stone":
+        cancel event
+        send "&cYou cannot drop the space Stone!" to player
+
+on inventory click:
+    set {_invtype} to "%type of player's current inventory%" # Convert inventory type to text
+    if {_invtype} is "chest inventory" or "barrel inventory" or "shulker box inventory" or "crafter inventory" or "ender chest inventory" or "hopper inventory" or "grindstone inventory" or "crafting inventory" or "smithing inventory" or "loom inventory" or "cartography inventory" or "stonecutter inventory" or "furnace inventory" or "blast furnace inventory":
+        if event-item is nether star:
+            if event-item's name is "§1§lSpace Stone":
+                cancel event
+                send "&cYou cannot store the space Stone in this container!" to player
+
+on craft of beacon:
+    loop all items in event-inventory:
+        if loop-item is nether star:
+            if loop-item's name is "§1§lSpace Stone":
+                cancel event
+                send "&cYou cannot use the space Stone to craft a beacon!" to player
+
+on inventory click:
+    if player's current inventory is anvil inventory: # Ensures player is using an anvil
+        if clicked slot is 0 or 1 or 2: # Anvil slots (Left input, Right input, Output)
+            if event-item is nether star:
+                if event-item's name is "§1§lSpace Stone":
+                    cancel event
+                    send "&cYou cannot modify the space Stone in an anvil!" to player

@@ -1,0 +1,554 @@
+on load:
+    delete {unluckyActive::*}
+    delete {unluckyEffect::*}
+    set {customitems::spark} to nether star named "§b§lSpark" with lore "§f§lRight click to use" with custom model data 14
+    set {customitems::core} to diamond named "§b§lCelestial Core" with lore "§f§lRight click to use"
+command /resetjoins:
+    permission: op
+    trigger:
+        delete {joined::*}
+        send "&cAll player join-tracking has been reset." to player
+
+
+
+
+
+on rightclick with diamond:
+    if player's inventory does not contain nether star:
+        if name of player's tool is "§b§lCelestial Core":
+            cancel event
+            remove 1 of player's tool from player's inventory
+            
+            # Randomly pick one of 6 stone types
+            set {_types::*} to "powerstone" and "soulstone" and "spacestone" and "timestone" and "realitystone" and "mindstone"
+            set {_names::powerstone} to "§5§lPower Stone"
+            set {_names::soulstone} to "§6§lSoul Stone"
+            set {_names::spacestone} to "§1§lSpace Stone"
+            set {_names::timestone} to "§2§lTime Stone"
+            set {_names::realitystone} to "§4§lReality Stone"
+            set {_names::mindstone} to "§e§lMind Stone"
+
+            set {_chosen} to random element out of {_types::*}
+            set {_name} to {_names::%{_chosen}%}
+            set {_item} to {customitems::%{_chosen}%}
+
+            give {_item} to player
+            set {spark::%uuid of player%} to 5
+
+            send "&bYou have been granted the %{_name}%&b!" to player
+            send "&eYour Sparks have been restored to &65&e!" to player
+            send "&bYou now have %{spark::%uuid of player%}% Spark!" to player
+
+            play sound "ENTITY_PLAYER_LEVELUP" with volume 1 and pitch 1.3 to player
+
+            loop 12 times:
+                draw 6 happy villager at player with extra 0.3 with force
+                wait 1 tick
+
+
+
+# On player death by another player
+
+
+
+
+        
+command /item <text> [<player>]:
+    permission: op
+    trigger:
+        set {_item} to {customitems::%arg-1%}
+        if {_item} is not set:
+            send "&cThat custom item doesn't exist!" to player
+            stop
+        if arg-2 is set:
+            give {_item} to arg-2
+            send "&aGave %arg-1% to %arg-2%." to player
+        else:
+            give {_item} to player
+            send "&aGave you %arg-1%." to player
+
+
+command /reset:
+    permission: op
+    trigger:      
+        delete {soulStoneCooldown::%player%}
+        delete {soulStoneCooldown::*}
+        delete {soulStoneCooldown1::%player%}
+        delete {soulStoneCooldown1::*}
+        delete {soulStoneCooldown2::%player%}
+        delete {soulStoneCooldown2::*}
+        delete {spark::%player%}
+        send "§cAll active Stone cooldowns have been reset!" to all players
+        delete {powerStoneCooldown::%player%}
+        delete {powerStoneCooldown::*}
+        delete {powerStoneCooldown1::%player%}
+        delete {powerStoneCooldown1::*}
+        delete {powerStoneCooldown2::%player%}
+        delete {powerStoneCooldown2::*}
+        delete {spaceStoneCooldown::%player%}
+        delete {spaceStoneCooldown::*}
+        delete {spaceStoneCooldown1::%player%}
+        delete {spaceStoneCooldown1::*}
+        delete {spaceStoneCooldown2::%player%}
+        delete {spaceStoneCooldown2::*}
+        delete {timeStoneCooldown::%player%}
+        delete {timeStoneCooldown::*}
+        delete {timeStoneCooldown1::%player%}
+        delete {timeStoneCooldown1::*}
+        delete {timeStoneCooldown2::%player%}
+        delete {timeStoneCooldown2::*}
+        delete {realityStoneCooldown::%player%}
+        delete {realityStoneCooldown::*}
+        delete {realityStoneCooldown1::%player%}
+        delete {realityStoneCooldown1::*}
+        delete {realityStoneCooldown2::%player%}
+        delete {realityStoneCooldown2::*}
+        delete {mindStoneCooldown::%player%}
+        delete {mindStoneCooldown::*}
+        delete {mindStoneCooldown1::%player%}
+        delete {mindStoneCooldown1::*}
+        delete {mindStoneCooldown2::%player%}
+        delete {mindStoneCooldown2::*}
+        delete {mindstone_cooldown::*}
+        delete {mindstone_activated::*}
+        delete {powerstone_activated::*}
+        delete {powerstone_cooldown::*}
+        delete {powerstone_activated::*}
+        delete {powerStoneTrigger::*}
+        delete {timeStoneTrigger::*}
+        delete {spaceStoneTrigger::*}
+        delete {soulStoneTrigger::*}
+        delete {mindStoneTrigger::*}
+        delete {realityStoneTrigger::*}
+        delete {timestone_cooldown::*}
+        delete {timestone_activated::*}
+        delete {telekinesisActive::*}
+        delete {telekinesisActive::%player%}
+  
+on join:
+    if {joined::%uuid of player%} is not set:
+        set {joined::%uuid of player%} to true
+
+        # Stones with display names and colors
+        set {_stones::1} to "powerstone"
+        set {_stones::2} to "soulstone"
+        set {_stones::3} to "spacestone"
+        set {_stones::4} to "timestone"
+        set {_stones::5} to "realitystone"
+        set {_stones::6} to "mindstone"
+
+        set {_displayNames::powerstone} to "§5§lPower Stone"
+        set {_displayNames::soulstone} to "§6§lSoul Stone"
+        set {_displayNames::spacestone} to "§1§lSpace Stone"
+        set {_displayNames::timestone} to "§2§lTime Stone"
+        set {_displayNames::realitystone} to "§4§lReality Stone"
+        set {_displayNames::mindstone} to "§e§lMind Stone"
+
+        # Shuffle animation: loop 9 times fast
+        loop 9 times:
+            set {_i} to random integer between 1 and 6
+            set {_type} to {_stones::%{_i}%}
+            set {_coloredName} to {_displayNames::%{_type}%}
+            send action bar "&7Rolling... %{_coloredName}%"
+            play sound "BLOCK_NOTE_BLOCK_PLING" with volume 1 and pitch 1.8 to player
+            wait 4 ticks
+
+        # Final pick
+        set {_finalIndex} to random integer between 1 and 6
+        set {_finalType} to {_stones::%{_finalIndex}%}
+        set {_finalName} to {_displayNames::%{_finalType}%}
+        set {_finalItem} to {customitems::%{_finalType}%}
+
+        # Show final pick for 3 seconds (60 ticks)
+        send action bar "&bYou got: %{_finalName}%"
+        play sound "ENTITY_PLAYER_LEVELUP" with volume 1 and pitch 1.2 to player
+
+        wait 20 ticks
+
+        give {_finalItem} to player
+
+        send ""
+        send "&bYou received the %{_finalName}%&b!"
+        send ""
+
+        # Celebrate particles
+        loop 15 times:
+            draw 6 happy villager at player with extra 0.3 with force
+            wait 1 tick
+
+
+# Cancel automatic item moves into containers
+on inventory move item:
+    cancel event
+
+
+command /resetjoin <offlineplayer>:
+    permission: op
+    permission message: "&cYou must be OP to use this command."
+    trigger:
+        set {_target} to arg-1
+        delete {joined::%uuid of {_target}%}
+        send "&aJoin status for %{_target}% has been reset."
+
+
+
+# Global progression level: 0 = disabled, 1 or 2 = enabled levels
+# Default is disabled (0)
+
+command /progression <text>:
+    permission: op
+    trigger:
+        set {_num} to arg 1 parsed as integer
+        if {_num} is 1:
+            set {progression::level} to 1
+            send title "<##cafca4>&lPhase 1" with subtitle "<##f9f4d3>The Creation of Infinity" to all players for 4 seconds
+            loop all players:
+                play sound "ui.toast.challenge_complete" with volume 1 and pitch 1 to loop-player
+        else if {_num} is 2:
+            set {progression::level} to 2
+            send title "&c&lPhase 2" with subtitle "<##FC8888>The Flames of Infinity" to all players for 4 seconds
+            loop all players:
+                play sound "ui.toast.challenge_complete" with volume 1 and pitch 1 to loop-player
+        else:
+            send "&cUsage: /progression <1|2>"
+
+on load:
+    clear {_stones::*}
+    add "§5§lPower Stone" to {_stones::*}
+    add "§6§lSoul Stone" to {_stones::*}
+    add "§1§lSpace Stone" to {_stones::*}
+    add "§2§lTime Stone" to {_stones::*}
+    add "§4§lReality Stone" to {_stones::*}
+    add "§e§lMind Stone" to {_stones::*}
+
+on load:
+    clear {_stones::*}
+    add "§5§lPower Stone" to {_stones::*}
+    add "§6§lSoul Stone" to {_stones::*}
+    add "§1§lSpace Stone" to {_stones::*}
+    add "§2§lTime Stone" to {_stones::*}
+    add "§4§lReality Stone" to {_stones::*}
+    add "§e§lMind Stone" to {_stones::*}
+
+on place of item frame:
+    cancel event
+    send "&cYou cannot place item frames!"
+
+
+command /disableprogression:
+    permission: op
+    trigger:
+        delete {progression::level}
+        broadcast "&aServer progression restrictions have been disabled."
+
+# --- ENCHANTMENT RESTRICTIONS ---
+
+
+
+
+
+
+
+on portal create:
+    if {progression::level} is 1:
+        cancel event
+        send "&cYou can't open a Nether portal at progression level 1." to player
+
+
+# /trust <player>
+command /trust <offlineplayer>:
+    trigger:
+        if uuid of arg-1 is uuid of player:
+            send "&cYou can't trust yourself!"
+            stop
+        if {trust::%uuid of player%::*} contains uuid of arg-1:
+            send "&e%arg-1% &cis already trusted."
+        else:
+            add uuid of arg-1 to {trust::%uuid of player%::*}
+            send "&aYou now trust &e%arg-1%&a."
+
+# /untrust <player>
+command /untrust <offlineplayer>:
+    trigger:
+        if {trust::%uuid of player%::*} contains uuid of arg-1:
+            remove uuid of arg-1 from {trust::%uuid of player%::*}
+            send "&cYou no longer trust &e%arg-1%&c."
+        else:
+            send "&e%arg-1% &cis not in your trusted list."
+
+command /trusted:
+    trigger:
+        set {_list::*} to {trust::%uuid of player%::*}
+        if size of {_list::*} is 0:
+            send "&7You don't trust anyone yet."
+        else:
+            send "&aTrusted Players:"
+            loop {_list::*}:
+                set {_username} to "%loop-value parsed as offline player%"
+                send "&7- %{_username}%" to player
+
+
+
+command /toggleautoenchant:
+    trigger:
+        if {progression::level} is 1:
+            send "Enchants are disabled during this progression!" to player
+        else:
+            if {autoEnchant.%player%} is true:
+                set {autoEnchant.%player%} to false
+                send "&cStone Auto Enchant has been &lDISABLED!"
+            else:
+                set {autoEnchant.%player%} to true
+                send "&aStone Auto Enchant has been &lENABLED!"
+
+
+
+
+
+on inventory click:
+	if {ghoost...%player%} is true:
+		cancel event
+	if type of player's current inventory is chest inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is barrel inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is workbench inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is ender chest inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is loom inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is hopper inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+	if type of player's current inventory is merchant inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is chiseled bookshelf:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is new smithing table:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is bookshelf:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is a jukebox:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is beacon inventory:
+		if event-item is nether star or netherite axe:
+			cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is shulker box inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is lectern inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is villager inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is a smoker inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is a brewing stand inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is grindstone inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is furnace inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is blast furnace inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is upgrade gear:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is composter inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is an enchanting table inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is dropper inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is cartography table inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is upgrade gear table:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is dispenser inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is stonecutter inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is anvil inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	if type of player's current inventory is crafter inventory:
+		if event-item is nether star or netherite axe:
+			if lore of event-item is set:
+				cancel event
+		if slot hotbar button of player's inventory is nether star or netherite axe:
+			if lore of slot hotbar button of player's inventory is set:
+				cancel event
+	#if type of player's current inventory is bundle inventory: ENABLING THESE LINES WHILE PLAYING WITH BUNDLES MIGHT PREVENT THE BUNDLE DUPE
+		#if event-item is nether star or netherite axe:
+			#if lore of event-item is set:
+				#cancel event
+		#if slot hotbar button of player's inventory is nether star or netherite axe:
+			#if lore of slot hotbar button of player's inventory is set:
+				#cancel event
+
+on right click on decorated pot:
+	if player's tool is nether star or netherite axe:
+		if lore of player's tool is set:
+			cancel event
+
+#on swap hand items:
+	#if player is riding:
+		#if player's offhand tool is nether star or netherite axe:
+			#cancel event
+
+on right click on decorated pot:
+	if player's tool is nether star or netherite axe:
+		if lore of player's tool is set:
+			cancel event
+
+#on swap hand items:
+	#if player is riding:
+		#if player's offhand tool is nether star or netherite axe:
+			#cancel event
+on inventory click:
+	if click type is swap offhand:
+		if player's offhand tool is set:
+			if player's offhand tool is nether star or netherite axe:
+				cancel event
+
+
+
